@@ -1,0 +1,89 @@
+version: '3.8'
+services:
+  db:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: suivant
+      POSTGRES_DB: real_estate
+    ports:
+      - "5432:5432"
+
+
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Numeric, Boolean, ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from datetime import datetime 
+import pandas as pd
+
+engine = create_engine('postgresql://postgres:suivant.@localhost:5432/postgres')
+
+Base = declarative_base()
+
+# Define the Annonce model
+class Annonce(Base):
+    __tablename__ = 'Annonce'  # Name of the table in the database
+
+    id = Column(Integer, primary_key=True)
+    title = Column(String)
+    price = Column(String)
+    datetime = Column(DateTime, default=datetime.utcnow)  # Default to current time
+    nb_rooms = Column(Integer)
+    nb_baths = Column(Integer)
+    surface_area = Column(Numeric)
+    link = Column(String)
+    city_id = Column(Integer, ForeignKey('City.id'))  # Reference to City table
+
+# Define the City model
+class City(Base):
+    __tablename__ = 'City'  # Name of the table in the database
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String)  # Add other relevant fields as necessary
+
+class Equipement(Base):
+    __tablename__ = 'Equipement'  # Name of the table in the database
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    # Ascenseur = Column(Boolean)
+    # Balcon = Column(Boolean)
+    # Chauffage = Column(Boolean)
+    # Climatisation = Column(Boolean)
+    # Concierge = Column(Boolean)
+    # Cuisine_equipee = Column(Boolean)
+    # Duplex = Column(Boolean)
+    # Meuble = Column(Boolean)
+
+class Table_associative(Base):
+    __tablename__ = 'Table_associative'
+
+    annonce_id = Column(Integer, ForeignKey('Annonce.id'), primary_key=True) # sowel 3el haad lblan
+    equipment_id = Column(Integer, ForeignKey('Equipement.id'), primary_key=True) # sowel 3el haad lblan
+    
+
+# Create the tables in the database
+Base.metadata.create_all(engine)  # Creates both City and Annonce tables
+
+# Create a session
+Session = sessionmaker(bind=engine)
+session = Session()  # Create a session to interact with the database
+
+df = pd.read_csv('ensemble_donnees_pret_pour_lanalyse.csv')
+
+annonces = df[['Title', 'Price', 'Chambre', 'Salle de bain', 'Surface habitable', 'URL', 'Localisation']]
+annonces.columns = ['title', 'price', 'nb_rooms', 'nb_baths', 'surface_area', 'link', 'city_name']
+# Étape 3 : Préparer les données pour la table City
+cities = df[['Localisation']].drop_duplicates()
+cities.columns = ['name']
+# Étape 4 : Préparer les données pour la table Equipement
+equipments = ['Ascenseur', 'Balcon', 'Chauffage', 'Climatisation', 'Concierge', 'Cuisine equipee', 'Duplex', 'Meuble']
+equipments_df = pd.DataFrame(equipments, columns=['name'])
+# Connexion à la base de données
+engine = create_engine('sqlite:///my_databasa.db')  # Remplacez par votre base de données
+# Étape 5 : Insérer les données dans les tables
+cities.to_sql('City', engine, if_exists='append', index=False)
+annonces['city_id'] = pd.Series(range(1, len(annonces) + 1))  # Remplacez ceci par une logique de correspondance appropriée
+annonces.to_sql('Annonce', engine, if_exists='append', index=False)
+equipments_df.to_sql('Equipement', engine, if_exists='append', index=False)
