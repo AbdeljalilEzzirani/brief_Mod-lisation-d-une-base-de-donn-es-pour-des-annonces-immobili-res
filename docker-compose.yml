@@ -1,0 +1,32 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:14
+    restart: always  # Uncommenting this ensures the DB restarts if it goes down
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: suivant
+      POSTGRES_DB: real_estate
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  app:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://postgres:suivant@db:5432/real_estate
+    depends_on:
+      - db
+    volumes:
+      - .:/app
+    command: python3 code_source.py
+    # Add a health check to ensure the app waits for the database to be ready
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h db -p 5432 -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
